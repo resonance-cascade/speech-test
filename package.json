@@ -19,6 +19,7 @@
   "license": "CC0-1.0",
   "dependencies": {
     "@google-cloud/speech": "^0.7.0",
+    "getusermedia": "^2.0.1",
     "node-record-lpcm16": "^0.2.0"
   },
   "devDependencies": {
