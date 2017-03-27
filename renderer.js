@@ -7,15 +7,12 @@ const pcm = require('pcm-stream')
 
 const myPath = path.join(__dirname, '/auth.json')
 
-
 const speech = Speech({
   projectId: 'dexter-dev-env',
   keyFilename: myPath
 })
 
-
-
-const request = { config: { encoding: 'LINEAR16', sampleRate: 16000 },
+const request = { config: { encoding: 'LINEAR16', sampleRate: 44100 },
   singleUtterance: false,
   interimResults: false,
   verbose: true}
