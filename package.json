@@ -1,16 +1,27 @@
 {
   "name": "speech",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A minimal Electron application",
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": "https://github.com/bcomnes/speech-test",
+  "keywords": [
+    "Electron",
+    "quick",
+    "start",
+    "tutorial",
+    "demo"
+  ],
+  "author": "GitHub",
+  "license": "CC0-1.0",
   "dependencies": {
-    "@google-cloud/speech": "^0.7.0",
+  	"@google-cloud/speech": "^0.7.0",
     "node-record-lpcm16": "^0.2.0"
+  },
+  "devDependencies": {
+    "electron": "~1.6.2"
   }
 }
