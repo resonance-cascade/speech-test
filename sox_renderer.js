@@ -27,7 +27,10 @@ const request = { config: { encoding: 'LINEAR16', sampleRate: 16000 },
     // Create a recognize stream
 const recognizeStream = speech.createRecognizeStream(request)
             .on('error', console.error)
-            .on('data', function (data) { console.log(data) })
+            .on('data', function (data) {
+              console.log(data.endpointerType)
+              if (data.results.length > 0) console.log(data.results[0].transcript)
+            })
               // process.stdout.write(data.results)
 
     // Start recording and send the microphone input to the Speech API
