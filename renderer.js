@@ -1,10 +1,10 @@
 var choo = require('choo')
 var html = require('choo/html')
 var app = window.hyperamp = choo()
-var TextToSpeech = require('./text-to-speech')
+var SpeechToText = require('./speech-to-text')
 var path = require('path')
 var log = require('choo-log')
-var t2s = new TextToSpeech({
+var s2t = new SpeechToText({
   projectId: 'dexter-dev-env',
   keyFilename: path.join(__dirname, 'auth.json')
 })
@@ -18,26 +18,21 @@ app.mount('#app')
 function store (state, bus) {
   state.msgs = []
   state.listening = false
-  state.paused = false
-  t2s.on('error', log)
-  t2s.on('status', log)
+
+  s2t.on('error', log)
+  s2t.on('status', log)
   function log (data) {
     state.msgs.push(data)
     bus.emit('render')
   }
 
-  t2s.on('data', apiLog)
+  s2t.on('data', apiLog)
   function apiLog (data) {
     state.msgs.push(JSON.stringify(data))
     bus.emit('render')
   }
 
-  t2s.on('paused', function (status) {
-    state.paused = status
-    bus.emit('render')
-  })
-
-  t2s.on('listening', function (status) {
+  s2t.on('listening', function (status) {
     state.listening = status
     bus.emit('render')
   })
@@ -50,22 +45,12 @@ function store (state, bus) {
 
   bus.on('listen', listen)
   function listen () {
-    t2s.listen()
+    s2t.listen()
   }
 
   bus.on('stop', stop)
   function stop () {
-    t2s.stop()
-  }
-
-  bus.on('pause', pause)
-  function pause () {
-    t2s.pause()
-  }
-
-  bus.on('resume', resume)
-  function resume () {
-    t2s.resume()
+    s2t.stop()
   }
 }
 
@@ -74,13 +59,7 @@ function view (state, emit) {
     <main>
       <div>
         ${state.listening
-          ? html`
-            <div>
-              <button onclick=${() => emit('stop')}>stop</button>
-              ${state.paused
-                ? html`<button onclick=${() => emit('resume')}>resume</button>`
-                : html`<button onclick=${() => emit('pause')}>pause</button>`}
-            </div>`
+          ? html`<button onclick=${() => emit('stop')}>stop</button>`
           : html`<button onclick=${() => emit('listen')}>start</button>`}
       </div>
       <div>output</div>
