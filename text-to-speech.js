@@ -1,10 +1,14 @@
-const EventEmitter = require('events').EventEmitter
-const getUserMedia = require('getusermedia')
-const Speech = require('@google-cloud/speech')
-const path = require('path')
-const audio = require('audio-stream')
-const pcm = require('pcm-stream')
-const assert = require('assert')
+var EventEmitter = require('events').EventEmitter
+var getUserMedia = require('getusermedia')
+var Speech = require('@google-cloud/speech')
+var audio = require('audio-stream')
+var pcm = require('pcm-stream')
+var assert = require('assert')
+var pumpify = require('pumpify')
+var writer = require('flush-write-stream')
+var pump = require('pump')
+
+module.exports = TextToSpeech
 
 function TextToSpeech (opts) {
   if (!(this instanceof TextToSpeech)) return new TextToSpeech()
@@ -19,11 +23,26 @@ function TextToSpeech (opts) {
     }
   }, opts)
 
+  this.speech = Speech({
+    projectId: this._opts.projectId,
+    keyFilename: this._opts.keyFilename
+  })
   this.mediaStream = null
   this.sourceStream = null
   this.sinkStream = null
+  this.pipeline = null
   this.listening = false
   this.paused = false
+  this.waiting = false
+
+  var self = this
+
+  getUserMedia({video: false, audio: true}, function (err, ms) {
+    if (err) throw err
+    console.log('got media stream')
+    self.mediaStream = ms
+    self.emit('mediaStream', ms)
+  })
 
   EventEmitter.call(this)
 }
@@ -31,49 +50,69 @@ function TextToSpeech (opts) {
 TextToSpeech.prototype = Object.create(EventEmitter.prototype)
 
 TextToSpeech.prototype.listen = function () {
+  var self = this
   if (this.listening) return this.emit('status', 'Already Listening')
-  if (!this.mediaStream)
-  if (!this.sourceStream)
-  if (!this.mediaStream)
+
+  if (!this.mediaStream) {
+    console.log('missing media stream')
+    if (this.waiting) return this.emit('status', 'Waiting for userMedia')
+    this.waiting = true
+    return this.once('mediaStream', function () {
+      this.listen()
+    })
+  }
+
+  if (!this.sinkStream) {
+    console.log('created sink Stream')
+    var recognizeStream = this.speech.createRecognizeStream(this._opts.request)
+    var emitter = writer.obj(function (data, enc, cb) {
+      self.emit('data', data)
+      cb()
+    })
+    this.sinkStream = pumpify(pcm(), recognizeStream, emitter)
+  }
+
+  if (!this.sourceStream) {
+    console.log('created audio stream')
+    this.sourceStream = audio(this.mediaStream, {
+      channels: 1,
+      volume: 1
+    })
+  }
+  this.listening = true
+  this.emit('listening', true)
+  console.log('now listening')
+  pump(this.sourceStream, this.sinkStream, function (err) {
+    if (err) console.error(err)
+  })
 }
 
 TextToSpeech.prototype.pause = function () {
+  if (!this.listening) return this.emit('status', 'Not Listening, Cant payse')
+  if (this.paused) return this.emit('status', 'Already Paused')
+  this.paused = true
+  this.emit('paused', true)
+  this.sourceStream.suspend()
+}
 
+TextToSpeech.prototype.resume = function () {
+  if (!this.listening) return this.emit('status', 'Not Listening, Cant resume')
+  if (!this.paused) return this.emit('status', 'Not paused, cant resume')
+  this.paused = false
+  this.emit('paused', false)
+  this.sourceStream.restart()
 }
 
 TextToSpeech.prototype.stop = function () {
-
-}
-
-const myPath = path.join(__dirname, 'auth.json')
-
-const speech = Speech({
-  projectId: 'dexter-dev-env',
-  keyFilename: myPath
-})
-
-const request = { config: { encoding: 'LINEAR16', sampleRate: 44100 },
-  singleUtterance: false,
-  interimResults: false,
-  verbose: true}
-
-const recognizeStream = speech.createRecognizeStream(request)
-            .on('error', console.error)
-            .on('data', function (data) {
-              console.log(data.endpointerType)
-              if (data.results.length > 0) console.log(data.results[0].transcript)
-            })
-
-getUserMedia({video: false, audio: true}, function (err, mediaStream) {
-  if (err) return console.error(err)
-  var sourceStream = audio(mediaStream, {
-    channels: 1,
-    volume: 1
+  this.pipeline.detroy()
+  this.listening = false
+  this.emit('listening', false)
+  this.paused = false
+  this.emit('paused', false)
+  this.sourceStream = null
+  this.sinkStream = null
+  this.pipeline = null
+  this.mediaStream.getAudioTracks().forEach(function (track) {
+    track.stop()
   })
-  sourceStream
-        .pipe(pcm())
-        .pipe(recognizeStream)
-  console.log(mediaStream)
-  console.log(sourceStream)
-  console.log(recognizeStream)
-})
+}
