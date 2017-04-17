@@ -23,8 +23,10 @@
   "dependencies": {
     "@google-cloud/speech": "^0.7.0",
     "audio-stream": "^0.1.1",
+    "choo": "^5.1.5",
     "getusermedia": "^2.0.1",
-    "pcm-stream": "^1.0.0"
+    "pcm-stream": "^1.0.0",
+    "pump": "^1.0.2"
   },
   "devDependencies": {
     "electron": "~1.6.2",

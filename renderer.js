@@ -1,36 +1,59 @@
+var choo = require('choo')
+var html = require('choo/html')
+var app = window.hyperamp = choo()
 
-const getUserMedia = require('getusermedia')
-const Speech = require('@google-cloud/speech')
-const path = require('path')
-const audio = require('audio-stream')
-const pcm = require('pcm-stream')
+app.use(store)
 
-const myPath = path.join(__dirname, '/auth.json')
+app.route('/', view)
+app.mount('#app')
 
-const speech = Speech({
-  projectId: 'dexter-dev-env',
-  keyFilename: myPath
-})
+function store (state, bus) {
+  state.msgs = []
+  state.listening = false
 
-const request = { config: { encoding: 'LINEAR16', sampleRate: 44100 },
-  singleUtterance: false,
-  interimResults: false,
-  verbose: true}
+  bus.on('clear', clear)
+  function clear () {
+    state.msgs = []
+    bus.emit('render')
+  }
 
-const recognizeStream = speech.createRecognizeStream(request)
-            .on('error', console.error)
-            .on('data', function (data) {
-              console.log(data.endpointerType)
-              if (data.results.length > 0) console.log(data.results[0].transcript)
-            })
+  bus.on('listen', listen)
+  function listen () {
+    if (state.listening) {
+      state.msgs.push('already listening')
+    } else {
+      state.msgs.push('listening')
+      state.listening = true
+    }
+    bus.emit('render')
+  }
 
-getUserMedia({video: false, audio: true}, function (err, mediaStream) {
-  if (err) return console.error(err)
-  var sourceStream = audio(mediaStream, {
-    channels: 1,
-    volume: 0.8
-  })
-  sourceStream
-        .pipe(pcm())
-        .pipe(recognizeStream)
-})
+  bus.on('stop', stop)
+  function stop () {
+    if (state.listening) {
+      state.msgs.push('stopped listening')
+      state.listening = false
+    } else {
+      state.msgs.push('already not listening')
+    }
+    bus.emit('render')
+  }
+}
+
+function view (state, emit) {
+  return html`
+    <main>
+      <div>
+        ${state.listening
+          ? html`<button onclick=${() => emit('stop')}>stop</button>`
+          : html`<button onclick=${() => emit('listen')}>start</button>`}
+      </div>
+      <div>output</div>
+      <div>
+        ${state.msgs.map(msg => html`
+          <div>${msg}</div>
+        `)}
+      </div>
+    </main>
+  `
+}
